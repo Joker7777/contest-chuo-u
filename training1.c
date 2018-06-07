@@ -1,6 +1,7 @@
 #include "ysml.h"
 #include <stdio.h>
 #include <sysio.h>
+#include <stdlib.h>
 
 /*********************************************************************
 *****	ポーリングによるAD変換入力
@@ -24,10 +25,9 @@
 *****	15			   (DA3)
 *********************************************************************/
 
-#define	AN0	0
-// #define	AN8	8
-// #define	AN9	9
-
+#define	DIST	0 // AN0, CN3_11
+#define	FOTO	8 // AN8, CN3_21
+////////////////////////////////////////////
 #define	WAIT_SENSOR	(100000)
 #define	WAIT_BUZZER	(100000)
 
@@ -40,28 +40,28 @@ void wait(unsigned long count)
 
 void main()
 {
-	unsigned short data0, data1, data2;
-	int bzz = 0;
+	unsigned short dist, foto;
 
 	DaInit(2);		//DA2チャンネルの出力許可
-	PAdInit(AN0);	//AD変換器初期化
-	// PAdInit(AN8);
-	// PAdInit(AN9);
+	// PAdInit(DIST);	//AD変換器初期化
+	PAdInit(FOTO);
 	
 	while(1) {
-		data0 = PAdIn(AN0);			//入力信号をAD変換する
-		// data1 = PAdIn(AN8);
-		// data2 = PAdIn(AN9);
-		printf("sensor: %d\n", data0);
+		// dist = PAdIn(DIST);			//入力信号をAD変換する
+		foto = PAdIn(FOTO);
 		
-		if (data0 >= 430) {
-			DaOut(2, 255);		//DA2チャンネルの出力電圧を0Vから5V まで増加	
-		}
-		else {
-			DaOut(2, 0);		// DA2チャンネルの出力電圧を5Vから0V まで減少
-		}
+		// printf("sensor: %d\n", dist);
+		printf("sensor\tDig: %u\n", foto);
 		
-		wait(WAIT_BUZZER);
+		
+		// if (dist >= 430) { // d <= 10cm
+		if (foto > 100) { // black
+			DaOut(2, 255);		//DA2チャンネルの出力電圧を5V	
+		}
+		else { // d > 10cm or white
+			DaOut(2, 0);		// DA2チャンネルの出力電圧を0V
+		}
+
 		wait(WAIT_SENSOR);
 	}
 }
