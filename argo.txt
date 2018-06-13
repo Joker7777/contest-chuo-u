@@ -1,0 +1,35 @@
+L:探索
+
+if フォトセンサ反応
+then
+  停止
+  if 距離センサ2反応
+  then (検知)ブザー
+  else (机淵);
+
+  goto L:復帰
+
+if 距離センサ2(中央)反応
+then 直進、goto L:探索
+
+if 距離センサ1(右)反応
+then 距離センサ2が反応するまで右回転、goto L:探索
+
+if flg2 == true
+then
+  if 距離センサ3(左)反応
+  then 距離センサ2が反応するまで左回転、goto L:探索
+
+###### 距離センサ3代入前回と比較 #########
+if 距離センサ3減少
+then flg1 = true、直進、goto L:探索
+else
+  if flg1 == true
+  then flg2 = true(センサ3有効)
+goto 直進、goto L:探索
+#########################################
+
+L:復帰
+
+左に回転しながら後退
+goto L:探索
