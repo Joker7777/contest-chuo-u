@@ -31,19 +31,19 @@
 #define	FOTO1	8 // AN8, CN3_21
 ////////////////////////////////////////////
 
-#define	WAIT_SENSOR	(100000/20)
+#define	WAIT_SENSOR	(100000/20) // input() 0.1 seconds
 #define	WAIT_BUZZER	(500000) // 2 seconds
 
-#define WAIT_SHUNJI	(200000)	/* 瞬時停止の停止カウント */
+#define WAIT_SHUNJI	(100000)	/* 瞬時停止の停止カウント */
 #define WAIT_TYPE_A	(1000)	/* 停止カウント_タイプA */
 #define WAIT_TYPE_Back	(400000)	/* 復帰時動作時間 */
 /////////////////////////////////////////////
 
-#define	FOTO_TRUE	200// black
+#define	FOTO_TRUE	200 // black
 #define	DIST_TRUE	160	// 30 cm
-#define DIST_STOP	560
+#define DIST_STOP	560 // 8 cm
 
-#define VELOCITY 80
+#define VELOCITY 80 // max velocity
 
 void wait(unsigned long count)
 {
@@ -117,6 +117,7 @@ void motor(int move, char dlt)
 		DaOut(0, dlt);		/*DA0 pin CN3_17 右バランス調整*/
 		DaOut(1, dlt/3);		/*DA1 pin CN3_18 左バランス調整*/
 		wait(WAIT_TYPE_Back);
+		break;
 		
 	case 3:	/* 右回転 */
 		P1DR.BIT.B4 = 0;	/*P14 pin CN2_22 右モータ逆回転*/
@@ -214,6 +215,7 @@ void search()
 	
 	printf("search\n");
 	while(1) {
+		motor(1, VELOCITY);
 		input();
 		printf("while %d\ndist1: %d\tdist2: %d\tdist3: %d\tfoto1: %d\n",
 				i++, dist1, dist2, dist3, foto1);
@@ -222,9 +224,7 @@ void search()
 			motor(0, 0);
 			if (dist2 > DIST_TRUE) { // 目の前に缶
 				buzzer();
-				// change(0, 2, VELOCITY);
 				motor(2, VELOCITY);
-				// change(2, 0, VELOCITY);
 				motor(0, 0);
 				return;
 			}
@@ -237,7 +237,6 @@ void search()
 			continue;
 		}
 		if (dist1 > DIST_TRUE) { // 右反応
-			//for(j = 0; j < 10
 			motor(0, 0);
 			while(1) {
 				motor(3, VELOCITY);
@@ -249,7 +248,7 @@ void search()
 			}
 		}
 		if (flg == 2) { // 左有効
-			if (dist3 > DIST_TRUE) { // 左反応	\
+			if (dist3 > DIST_TRUE) { // 左反応
 				motor(0, 0);
 				while(1) {
 					motor(4, VELOCITY);
@@ -267,7 +266,6 @@ void search()
 			flg++;
 			continue;
 		}
-		motor(1, VELOCITY);
 		if (flg == 1) {
 			if (max < dist3) {
 				max = dist3;
