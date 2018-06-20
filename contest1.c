@@ -31,7 +31,7 @@
 #define	FOTO1	8 // AN8, CN3_21
 ////////////////////////////////////////////
 
-#define	WAIT_SENSOR	(100000/20) // input() 0.1 seconds
+#define	WAIT_SENSOR	(250000/20) // input() 0.05 seconds
 #define	WAIT_BUZZER	(500000) // 2 seconds
 
 #define WAIT_SHUNJI	(100000)	/* 瞬時停止の停止カウント */
@@ -83,7 +83,7 @@ void buzzer()
  * 4:	rotate left
  * 5:	
  *
- * unsigned short dlt 速さ指定 0 - 100
+* unsigned short dlt 速さ指定 normalize()
 */
 void motor(int move, char dlt)
 {
@@ -115,7 +115,7 @@ void motor(int move, char dlt)
 		P1DR.BIT.B6 = 0;	/*P16 pin CN2_20 左モータ逆回転*/
 		P1DR.BIT.B7 = 1;	/*P17 pin CN2_19               */
 		DaOut(0, dlt);		/*DA0 pin CN3_17 右バランス調整*/
-		DaOut(1, dlt/3);		/*DA1 pin CN3_18 左バランス調整*/
+		DaOut(1, dlt/2);		/*DA1 pin CN3_18 左バランス調整*/
 		wait(WAIT_TYPE_Back);
 		break;
 		
@@ -168,7 +168,7 @@ void input()
 }
 
 /*
- * distについて、距離が遠い<=>近いを、80 <=> 30に変換
+ * distについて、距離が遠い<=>近いを、80 <=> 20に変換
 */
 char normalize(unsigned short dist) {
 	int dlt;
@@ -183,7 +183,7 @@ char normalize(unsigned short dist) {
 		}
 		
 		// move
-		return (char)(VELOCITY-dlt/(DIST_STOP - DIST_TRUE)*50);
+		return (char)(VELOCITY-dlt/(DIST_STOP - DIST_TRUE)*60);
 }
 
 void search()
@@ -232,7 +232,7 @@ void search()
 					motor(0, 0);
 					break;
 				}
-				if (t++ > 5) {
+				if (t++ > 3) {
 					break;
 				}
 			}
@@ -249,7 +249,7 @@ void search()
 						motor(0, 0);
 						break;
 					}
-					if (t++ > 5) {
+					if (t++ > 3) {
 						break;
 					}
 				}
@@ -269,7 +269,15 @@ void search()
 				flg++;
 			}
 		}
-		motor(1, VELOCITY);
+		if (dist2 > dist1 && dist2 > dist3) { // max dist2
+			motor(1, normalize(dist2));
+		}
+		else if (dist1 > dist2 && dist1 > dist3) { // max dist1
+			motor(1, normalize(dist1));
+		}
+		else { // max dist3
+			motor(1, normalize(dist3));
+		}
 		printf("\n");
 	}
 }
