@@ -36,7 +36,7 @@
 
 #define WAIT_SHUNJI	(100000)	/* 瞬時停止の停止カウント */
 #define WAIT_TYPE_A	(50000)	/* 停止カウント_タイプA */
-#define WAIT_TYPE_Back	(400000)	/* 復帰時動作時間 */
+#define WAIT_TYPE_Back	(450000)	/* 復帰時動作時間 */
 /////////////////////////////////////////////
 
 #define	FOTO_TRUE	200 // black
@@ -126,7 +126,7 @@ void motor(int move, char dlt)
 		P1DR.BIT.B7 = 0;	/*P17 pin CN2_19               */
 		DaOut(0, dlt);		/*DA0 pin CN3_17 右バランス調整*/
 		DaOut(1, dlt);		/*DA1 pin CN3_18 左バランス調整*/
-		wait(WAIT_TYPE_A);
+		// wait(WAIT_TYPE_A);
 		break;
 		
 	case 4:	/* 左回転 */
@@ -136,7 +136,7 @@ void motor(int move, char dlt)
 		P1DR.BIT.B7 = 1;	/*P17 pin CN2_19               */
 		DaOut(0, dlt);		/*DA0 pin CN3_17 右バランス調整*/
 		DaOut(1, dlt);		/*DA1 pin CN3_18 左バランス調整*/
-		wait(WAIT_TYPE_A);
+		// wait(WAIT_TYPE_A);
 		break;
 		
 	default:
@@ -186,25 +186,6 @@ char normalize(unsigned short dist) {
 		return (char)(VELOCITY-dlt/(DIST_STOP - DIST_TRUE)*50);
 }
 
-/**
- * int move0 前の動作
- * int move1 後の動作
- * char dlt 変化前の速さ
-*/
-void change(int move0, int move1, char dlt) {
-	int i;
-	if (move0 == 0) {
-		for(i = 0; i < 10; i++) {
-			motor(move1, dlt*i/10);
-		}
-	}
-	else {
-		for(i = 9; i >= 0; i--) {
-			motor(move0, dlt*i/10);
-		}
-	}
-}
-
 void search()
 {
 	/*
@@ -213,16 +194,21 @@ void search()
 	 * 1: DIST3 is invalid
 	 * 2: DIST3 is valid
 	*/
-	int flg = 0, max = 0, i = 0, j = 0;
+	int flg = 0, max = 0, i = 0, j = 0, t = 0;
 	
 	printf("search\n");
 	while(1) {
 		printf("while\n");
 		input();
 		
-		if (foto1 > FOTO_TRUE || dist2 > DIST_STOP) { // 黒検知
+		if (foto1 > FOTO_TRUE
+			|| dist2 > DIST_STOP
+			|| dist1 > DIST_STOP
+			|| dist3 > DIST_STOP) { // 黒検知 & 近すぎる
 			motor(0, 0);
-			if (dist2 > DIST_TRUE) { // 目の前に缶
+			if (dist2 > DIST_TRUE*2
+				|| dist1 > DIST_TRUE*2
+				|| dist3 > DIST_TRUE*2) { // 目の前に缶
 				buzzer();
 				motor(2, VELOCITY);
 				motor(0, 0);
@@ -238,6 +224,7 @@ void search()
 		}
 		if (dist1 > DIST_TRUE) { // 右反応
 			motor(0, 0);
+			t = 0;
 			while(1) {
 				motor(3, VELOCITY);
 				input(); // ラグがあれば直接取ってくる
@@ -245,17 +232,24 @@ void search()
 					motor(0, 0);
 					break;
 				}
+				if (t++ > 5) {
+					break;
+				}
 			}
 			continue;
 		}
-		else if (flg == 2) { // 左有効
+		if (flg == 2) { // 左有効
 			if (dist3 > DIST_TRUE) { // 左反応
 				motor(0, 0);
+				t = 0;
 				while(1) {
 					motor(4, VELOCITY);
 					input();
 					if (dist2 > DIST_TRUE) {
 						motor(0, 0);
+						break;
+					}
+					if (t++ > 5) {
 						break;
 					}
 				}
@@ -283,11 +277,10 @@ void search()
 
 void main()
 {
-	int i;
-
 	init();
 	
 	while(1) {
 		search();
 	}
 }
+
