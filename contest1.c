@@ -35,12 +35,12 @@
 #define	WAIT_BUZZER	(500000) // 2 seconds
 
 #define WAIT_SHUNJI	(100000)	/* 瞬時停止の停止カウント */
-#define WAIT_TYPE_A	(1000)	/* 停止カウント_タイプA */
+#define WAIT_TYPE_A	(50000)	/* 停止カウント_タイプA */
 #define WAIT_TYPE_Back	(400000)	/* 復帰時動作時間 */
 /////////////////////////////////////////////
 
 #define	FOTO_TRUE	200 // black
-#define	DIST_TRUE	160	// 30 cm
+#define	DIST_TRUE	170	// 30 cm
 #define DIST_STOP	560 // 8 cm
 
 #define VELOCITY 80 // max velocity
@@ -106,7 +106,7 @@ void motor(int move, char dlt)
 		P1DR.BIT.B7 = 0;	/*P17 pin CN2_19               */
 		DaOut(0, dlt);		/*DA0 pin CN3_17 右バランス調整*/
 		DaOut(1, dlt);		/*DA1 pin CN3_18 左バランス調整*/
-		wait(WAIT_TYPE_A);
+		// wait(WAIT_TYPE_A);
 		break;
 		
 	case 2:	/* 後退 */
@@ -163,10 +163,12 @@ void input()
 		
 		wait(WAIT_SENSOR);
 	}
+	printf("input\ndist1: %d\tdist2: %d\tdist3: %d\tfoto1: %d\n",
+			dist1, dist2, dist3, foto1);
 }
 
 /*
- * distについて、距離が遠い<=>近いを、80 <=> 20に変換
+ * distについて、距離が遠い<=>近いを、80 <=> 30に変換
 */
 char normalize(unsigned short dist) {
 	int dlt;
@@ -181,7 +183,7 @@ char normalize(unsigned short dist) {
 		}
 		
 		// move
-		return (char)(VELOCITY-dlt/(DIST_STOP - DIST_TRUE)*VELOCITY);
+		return (char)(VELOCITY-dlt/(DIST_STOP - DIST_TRUE)*50);
 }
 
 /**
@@ -215,10 +217,8 @@ void search()
 	
 	printf("search\n");
 	while(1) {
-		motor(1, VELOCITY);
+		printf("while\n");
 		input();
-		printf("while %d\ndist1: %d\tdist2: %d\tdist3: %d\tfoto1: %d\n",
-				i++, dist1, dist2, dist3, foto1);
 		
 		if (foto1 > FOTO_TRUE || dist2 > DIST_STOP) { // 黒検知
 			motor(0, 0);
@@ -246,8 +246,9 @@ void search()
 					break;
 				}
 			}
+			continue;
 		}
-		if (flg == 2) { // 左有効
+		else if (flg == 2) { // 左有効
 			if (dist3 > DIST_TRUE) { // 左反応
 				motor(0, 0);
 				while(1) {
@@ -258,23 +259,23 @@ void search()
 						break;
 					}
 				}
+				continue;
 			}				
 		}
 		// DIST3が無効なら、距離センサの減少具合を調べる
 		if (flg == 0) {
 			max = dist3;
 			flg++;
-			continue;
 		}
-		if (flg == 1) {
+		else if (flg == 1) {
 			if (max < dist3) {
 				max = dist3;
-				continue;
 			}
-			if (max - dist3 > 50) { // 同じ距離のときの振れ幅？誤差？的な、減少判定
+			else if (max - dist3 > 50) { // 同じ距離のときの振れ幅？誤差？的な、減少判定
 				flg++;
 			}
 		}
+		motor(1, VELOCITY);
 		printf("\n");
 	}
 }
