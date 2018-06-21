@@ -31,16 +31,16 @@
 #define	FOTO1	8 // AN8, CN3_21
 ////////////////////////////////////////////
 
-#define	WAIT_SENSOR	(100000/20) // input() 0.1 seconds
+#define	WAIT_SENSOR	(250000/20) // input() 0.05 seconds
 #define	WAIT_BUZZER	(500000) // 2 seconds
 
 #define WAIT_SHUNJI	(100000)	/* 瞬時停止の停止カウント */
-#define WAIT_TYPE_A	(1000)	/* 停止カウント_タイプA */
-#define WAIT_TYPE_Back	(400000)	/* 復帰時動作時間 */
+#define WAIT_TYPE_A	(50000)	/* 停止カウント_タイプA */
+#define WAIT_TYPE_Back	(500000)	/* 復帰時動作時間 */
 /////////////////////////////////////////////
 
 #define	FOTO_TRUE	200 // black
-#define	DIST_TRUE	160	// 30 cm
+#define	DIST_TRUE	170	// 30 cm
 #define DIST_STOP	560 // 8 cm
 
 #define VELOCITY 80 // max velocity
@@ -83,7 +83,7 @@ void buzzer()
  * 4:	rotate left
  * 5:	
  *
- * unsigned short dlt 速さ指定 0 - 100
+* unsigned short dlt 速さ指定 normalize()
 */
 void motor(int move, char dlt)
 {
@@ -106,7 +106,7 @@ void motor(int move, char dlt)
 		P1DR.BIT.B7 = 0;	/*P17 pin CN2_19               */
 		DaOut(0, dlt);		/*DA0 pin CN3_17 右バランス調整*/
 		DaOut(1, dlt);		/*DA1 pin CN3_18 左バランス調整*/
-		wait(WAIT_TYPE_A);
+		// wait(WAIT_TYPE_A);
 		break;
 		
 	case 2:	/* 後退 */
@@ -115,7 +115,7 @@ void motor(int move, char dlt)
 		P1DR.BIT.B6 = 0;	/*P16 pin CN2_20 左モータ逆回転*/
 		P1DR.BIT.B7 = 1;	/*P17 pin CN2_19               */
 		DaOut(0, dlt);		/*DA0 pin CN3_17 右バランス調整*/
-		DaOut(1, dlt/3);		/*DA1 pin CN3_18 左バランス調整*/
+		DaOut(1, dlt/2);		/*DA1 pin CN3_18 左バランス調整*/
 		wait(WAIT_TYPE_Back);
 		break;
 		
@@ -126,7 +126,7 @@ void motor(int move, char dlt)
 		P1DR.BIT.B7 = 0;	/*P17 pin CN2_19               */
 		DaOut(0, dlt);		/*DA0 pin CN3_17 右バランス調整*/
 		DaOut(1, dlt);		/*DA1 pin CN3_18 左バランス調整*/
-		wait(WAIT_TYPE_A);
+		// wait(WAIT_TYPE_A);
 		break;
 		
 	case 4:	/* 左回転 */
@@ -136,7 +136,7 @@ void motor(int move, char dlt)
 		P1DR.BIT.B7 = 1;	/*P17 pin CN2_19               */
 		DaOut(0, dlt);		/*DA0 pin CN3_17 右バランス調整*/
 		DaOut(1, dlt);		/*DA1 pin CN3_18 左バランス調整*/
-		wait(WAIT_TYPE_A);
+		// wait(WAIT_TYPE_A);
 		break;
 		
 	default:
@@ -163,10 +163,12 @@ void input()
 		
 		wait(WAIT_SENSOR);
 	}
+	printf("input\ndist1: %d\tdist2: %d\tdist3: %d\tfoto1: %d\n",
+			dist1, dist2, dist3, foto1);
 }
 
 /*
- * distについて、距離が遠い<=>近いを、80 <=> 20に変換
+ * distについて、距離が遠い<=>近いを、80 <=> 24に変換
 */
 char normalize(unsigned short dist) {
 	int dlt;
@@ -181,26 +183,7 @@ char normalize(unsigned short dist) {
 		}
 		
 		// move
-		return (char)(VELOCITY-dlt/(DIST_STOP - DIST_TRUE)*VELOCITY);
-}
-
-/**
- * int move0 前の動作
- * int move1 後の動作
- * char dlt 変化前の速さ
-*/
-void change(int move0, int move1, char dlt) {
-	int i;
-	if (move0 == 0) {
-		for(i = 0; i < 10; i++) {
-			motor(move1, dlt*i/10);
-		}
-	}
-	else {
-		for(i = 9; i >= 0; i--) {
-			motor(move0, dlt*i/10);
-		}
-	}
+		return (char)(VELOCITY-dlt*56/(DIST_STOP - DIST_TRUE));
 }
 
 void search()
@@ -211,18 +194,21 @@ void search()
 	 * 1: DIST3 is invalid
 	 * 2: DIST3 is valid
 	*/
-	int flg = 0, max = 0, i = 0, j = 0;
+	int flg = 0, max = 0, i = 0, j = 0, t = 0;
 	
 	printf("search\n");
 	while(1) {
-		motor(1, VELOCITY);
+		printf("while\n");
 		input();
-		printf("while %d\ndist1: %d\tdist2: %d\tdist3: %d\tfoto1: %d\n",
-				i++, dist1, dist2, dist3, foto1);
 		
-		if (foto1 > FOTO_TRUE || dist2 > DIST_STOP) { // 黒検知
+		if (foto1 > FOTO_TRUE
+			|| dist2 > DIST_STOP
+			|| dist1 > DIST_STOP
+			|| dist3 > DIST_STOP) { // 黒検知 & 近すぎる
 			motor(0, 0);
-			if (dist2 > DIST_TRUE) { // 目の前に缶
+			if (dist2 > DIST_TRUE*2/3
+				|| dist1 > DIST_TRUE*2/3
+				|| dist3 > DIST_TRUE*2/3) { // 目の前に缶
 				buzzer();
 				motor(2, VELOCITY);
 				motor(0, 0);
@@ -233,47 +219,68 @@ void search()
 			continue;
 		}
 		if (dist2 > DIST_TRUE) { // 中央反応
+			printf("!! %u\n", normalize(dist2));
 			motor(1, normalize(dist2));
 			continue;
 		}
 		if (dist1 > DIST_TRUE) { // 右反応
 			motor(0, 0);
+			t = 0;
 			while(1) {
-				motor(3, VELOCITY);
+				motor(3, 60);
 				input(); // ラグがあれば直接取ってくる
 				if (dist2 > DIST_TRUE) {
 					motor(0, 0);
 					break;
 				}
+				if (t++ > 3) {
+					break;
+				}
 			}
+			continue;
 		}
 		if (flg == 2) { // 左有効
 			if (dist3 > DIST_TRUE) { // 左反応
 				motor(0, 0);
+				t = 0;
 				while(1) {
-					motor(4, VELOCITY);
+					motor(4, 60);
 					input();
 					if (dist2 > DIST_TRUE) {
 						motor(0, 0);
 						break;
 					}
+					if (t++ > 3) {
+						break;
+					}
 				}
+				continue;
 			}				
 		}
 		// DIST3が無効なら、距離センサの減少具合を調べる
 		if (flg == 0) {
 			max = dist3;
 			flg++;
-			continue;
 		}
-		if (flg == 1) {
+		else if (flg == 1) {
 			if (max < dist3) {
 				max = dist3;
-				continue;
 			}
-			if (max - dist3 > 50) { // 同じ距離のときの振れ幅？誤差？的な、減少判定
+			else if (max - dist3 > 50) { // 同じ距離のときの振れ幅？誤差？的な、減少判定
 				flg++;
 			}
+		}
+		if (dist2 > dist1 && dist2 > dist3) { // max dist2
+			printf("2: %c\n", normalize(dist2));
+			motor(1, normalize(dist2));
+		}
+		else if (dist1 > dist2 && dist1 > dist3) { // max dist1
+			printf("1: %c\n", normalize(dist1));
+			motor(1, normalize(dist1));
+		}
+		else { // max dist3
+			printf("3: %c\n", normalize(dist3));
+			motor(1, normalize(dist3));
 		}
 		printf("\n");
 	}
@@ -282,11 +289,10 @@ void search()
 
 void main()
 {
-	int i;
-
 	init();
 	
 	while(1) {
 		search();
 	}
 }
+
